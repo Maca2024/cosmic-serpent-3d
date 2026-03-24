@@ -3,251 +3,136 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>COSMIC SERPENT — 3D Snake Game</title>
+  <title>COSMIC SERPENT v2 — 3D Snake Game</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      overflow: hidden;
-      background: #000;
-      font-family: 'Courier New', monospace;
-      cursor: none;
-    }
+    body { overflow: hidden; background: #000; font-family: 'Courier New', monospace; cursor: crosshair; }
     canvas { display: block; }
 
-    #ui {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      pointer-events: none;
-      z-index: 10;
+    #hud {
+      position: fixed; top: 0; left: 0; width: 100%; pointer-events: none; z-index: 10;
+      display: flex; justify-content: space-between; padding: 16px 24px;
     }
+    #hud-left, #hud-right { display: flex; flex-direction: column; gap: 4px; }
+    #hud-right { align-items: flex-end; }
 
-    #score {
-      position: fixed;
-      top: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      color: #0ff;
-      font-size: 24px;
-      text-shadow: 0 0 20px #0ff, 0 0 40px #0ff;
-      z-index: 10;
-      letter-spacing: 4px;
-    }
+    .hud-label { color: #556; font-size: 10px; letter-spacing: 3px; text-transform: uppercase; }
+    .hud-value { font-size: 22px; text-shadow: 0 0 15px currentColor; }
+    #score-val { color: #0ff; }
+    #combo-val { color: #f0f; transition: all 0.2s; }
+    #level-val { color: #0f0; }
+    #length-val { color: #ff0; }
 
-    #combo {
-      position: fixed;
-      top: 55px;
-      left: 50%;
-      transform: translateX(-50%);
-      color: #f0f;
-      font-size: 14px;
-      text-shadow: 0 0 10px #f0f;
-      z-index: 10;
-      opacity: 0;
-      transition: opacity 0.3s;
+    .powerup-indicator {
+      position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      font-size: 42px; color: #fff; z-index: 15; pointer-events: none;
+      text-shadow: 0 0 30px #fff, 0 0 60px #ff0; opacity: 0;
+      transition: opacity 0.3s, transform 0.3s;
     }
-
-    #speed-indicator {
-      position: fixed;
-      bottom: 20px;
-      left: 20px;
-      color: #0f0;
-      font-size: 12px;
-      text-shadow: 0 0 10px #0f0;
-      z-index: 10;
-    }
+    .powerup-indicator.show { opacity: 1; transform: translate(-50%, -60%); }
 
     #overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      background: rgba(0, 0, 0, 0.85);
-      z-index: 20;
-      backdrop-filter: blur(10px);
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      background: rgba(0,0,0,0.88); z-index: 20; backdrop-filter: blur(12px);
     }
-
     #overlay h1 {
-      font-size: 72px;
-      color: #0ff;
-      text-shadow: 0 0 30px #0ff, 0 0 60px #08f, 0 0 90px #04f;
-      margin-bottom: 10px;
-      letter-spacing: 8px;
-      animation: pulse 2s ease-in-out infinite;
+      font-size: 68px; color: #0ff; letter-spacing: 10px;
+      text-shadow: 0 0 40px #0ff, 0 0 80px #08f, 0 0 120px #04f;
+      animation: titleGlow 3s ease-in-out infinite;
     }
-
-    #overlay .subtitle {
-      color: #f0f;
-      font-size: 16px;
-      letter-spacing: 6px;
-      margin-bottom: 40px;
-      text-shadow: 0 0 15px #f0f;
-    }
-
-    #overlay .instructions {
-      color: #888;
-      font-size: 14px;
-      line-height: 2;
-      text-align: center;
-      margin-bottom: 30px;
-    }
-
-    #overlay .instructions span {
-      color: #0ff;
-    }
-
-    #overlay .start-text {
-      color: #0f0;
-      font-size: 18px;
-      animation: blink 1s ease-in-out infinite;
-      letter-spacing: 4px;
-    }
+    #overlay .ver { color: #f0f; font-size: 12px; letter-spacing: 4px; margin-top: -4px; margin-bottom: 30px; }
+    #overlay .sub { color: #888; font-size: 13px; line-height: 2.2; text-align: center; margin-bottom: 24px; }
+    #overlay .sub span { color: #0ff; }
+    #overlay .sub .key { color: #f80; }
+    #overlay .go { color: #0f0; font-size: 16px; animation: blink 1s infinite; letter-spacing: 4px; }
 
     #game-over {
-      display: none;
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      background: rgba(0, 0, 0, 0.9);
-      z-index: 20;
-      backdrop-filter: blur(10px);
+      display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      flex-direction: column; align-items: center; justify-content: center;
+      background: rgba(0,0,0,0.92); z-index: 20; backdrop-filter: blur(12px);
     }
+    #game-over h1 { font-size: 52px; color: #f22; text-shadow: 0 0 40px #f00, 0 0 80px #800; margin-bottom: 16px; letter-spacing: 6px; }
+    #game-over .stat { color: #0ff; font-size: 24px; margin-bottom: 6px; text-shadow: 0 0 12px #0ff; }
+    #game-over .hi { color: #ff0; font-size: 14px; margin-bottom: 24px; text-shadow: 0 0 8px #ff0; }
+    #game-over .go { color: #0f0; font-size: 14px; animation: blink 1s infinite; letter-spacing: 3px; }
 
-    #game-over h1 {
-      font-size: 56px;
-      color: #f00;
-      text-shadow: 0 0 30px #f00, 0 0 60px #800;
-      margin-bottom: 20px;
-      letter-spacing: 6px;
+    @keyframes titleGlow {
+      0%,100% { text-shadow: 0 0 40px #0ff, 0 0 80px #08f, 0 0 120px #04f; }
+      50% { text-shadow: 0 0 60px #0ff, 0 0 100px #0af, 0 0 160px #08f; }
     }
+    @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0.25; } }
 
-    #game-over .final-score {
-      color: #0ff;
-      font-size: 28px;
-      margin-bottom: 10px;
-      text-shadow: 0 0 15px #0ff;
-    }
-
-    #game-over .high-score {
-      color: #ff0;
-      font-size: 16px;
-      margin-bottom: 30px;
-      text-shadow: 0 0 10px #ff0;
-    }
-
-    #game-over .restart-text {
-      color: #0f0;
-      font-size: 16px;
-      animation: blink 1s ease-in-out infinite;
-      letter-spacing: 3px;
-    }
-
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.7; }
-    }
-
-    @keyframes blink {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.3; }
-    }
-
-    /* Mobile controls */
     #mobile-controls {
-      display: none;
-      position: fixed;
-      bottom: 60px;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 15;
-      pointer-events: all;
+      display: none; position: fixed; bottom: 50px; left: 50%; transform: translateX(-50%);
+      z-index: 15; pointer-events: all;
     }
-
-    .d-pad {
-      display: grid;
-      grid-template-columns: 60px 60px 60px;
-      grid-template-rows: 60px 60px 60px;
-      gap: 4px;
-    }
-
+    .d-pad { display: grid; grid-template-columns: repeat(3,56px); grid-template-rows: repeat(3,56px); gap: 3px; }
     .d-pad button {
-      background: rgba(0, 255, 255, 0.15);
-      border: 1px solid rgba(0, 255, 255, 0.4);
-      color: #0ff;
-      font-size: 24px;
-      border-radius: 8px;
-      cursor: pointer;
-      -webkit-tap-highlight-color: transparent;
+      background: rgba(0,255,255,0.12); border: 1px solid rgba(0,255,255,0.3);
+      color: #0ff; font-size: 22px; border-radius: 10px; -webkit-tap-highlight-color: transparent;
     }
-
-    .d-pad button:active {
-      background: rgba(0, 255, 255, 0.4);
-    }
-
+    .d-pad button:active { background: rgba(0,255,255,0.35); }
     .d-pad .empty { background: none; border: none; }
-
-    @media (max-width: 768px) {
-      #mobile-controls { display: block; }
-    }
+    @media (max-width: 768px) { #mobile-controls { display: block; } }
   </style>
 </head>
 <body>
-  <div id="score">SCORE: 0</div>
-  <div id="combo">COMBO x1</div>
-  <div id="speed-indicator">WARP 1</div>
+  <!-- HUD -->
+  <div id="hud">
+    <div id="hud-left">
+      <div class="hud-label">SCORE</div>
+      <div class="hud-value" id="score-val">0</div>
+      <div class="hud-label" style="margin-top:8px">COMBO</div>
+      <div class="hud-value" id="combo-val">-</div>
+    </div>
+    <div id="hud-right">
+      <div class="hud-label">LEVEL</div>
+      <div class="hud-value" id="level-val">1</div>
+      <div class="hud-label" style="margin-top:8px">LENGTH</div>
+      <div class="hud-value" id="length-val">3</div>
+    </div>
+  </div>
 
+  <div class="powerup-indicator" id="powerup-text"></div>
+
+  <!-- START SCREEN -->
   <div id="overlay">
     <h1>COSMIC SERPENT</h1>
-    <div class="subtitle">3D SNAKE IN SPACE</div>
-    <div class="instructions">
-      <span>WASD</span> or <span>ARROWS</span> — change direction<br>
-      <span>SHIFT</span> — boost speed<br>
-      Eat orbs to grow — avoid yourself<br>
-      Chain orbs quickly for <span>COMBO</span> multiplier
+    <div class="ver">V2.0 — GAMING ENGINE EDITION</div>
+    <div class="sub">
+      <span>WASD</span> / <span>ARROWS</span> — steer<br>
+      <span class="key">SHIFT</span> — warp boost<br>
+      <span class="key">SPACE</span> — activate power-up<br>
+      Collect orbs — chain for <span>COMBO</span><br>
+      Golden orbs = <span class="key">POWER-UPS</span><br>
+      Every 50 pts = level up (faster!)
     </div>
-    <div class="start-text">[ PRESS ANY KEY TO LAUNCH ]</div>
+    <div class="go">[ PRESS ANY KEY ]</div>
   </div>
 
+  <!-- GAME OVER -->
   <div id="game-over">
     <h1>GAME OVER</h1>
-    <div class="final-score" id="final-score">SCORE: 0</div>
-    <div class="high-score" id="high-score">HIGH SCORE: 0</div>
-    <div class="restart-text">[ PRESS ANY KEY TO RETRY ]</div>
+    <div class="stat" id="final-score">0</div>
+    <div class="hi" id="final-hi">HIGH: 0</div>
+    <div class="go">[ PRESS ANY KEY ]</div>
   </div>
 
+  <!-- MOBILE -->
   <div id="mobile-controls">
     <div class="d-pad">
-      <div class="empty"></div>
-      <button onclick="mobileInput('up')">▲</button>
-      <div class="empty"></div>
-      <button onclick="mobileInput('left')">◄</button>
-      <div class="empty"></div>
-      <button onclick="mobileInput('right')">►</button>
-      <div class="empty"></div>
-      <button onclick="mobileInput('down')">▼</button>
-      <div class="empty"></div>
+      <div class="empty"></div><button onclick="mobileInput('up')">&#9650;</button><div class="empty"></div>
+      <button onclick="mobileInput('left')">&#9668;</button><div class="empty"></div><button onclick="mobileInput('right')">&#9658;</button>
+      <div class="empty"></div><button onclick="mobileInput('down')">&#9660;</button><div class="empty"></div>
     </div>
   </div>
 
   <script type="importmap">
-  {
-    "imports": {
-      "three": "https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js",
-      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/"
-    }
-  }
+  { "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/"
+  }}
   </script>
 
   <script type="module">
@@ -255,466 +140,642 @@
     import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
     import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
     import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+    import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 
-    // ─── CONFIG ───
-    const GRID_SIZE = 20;
-    const CELL = 1;
-    const BASE_SPEED = 8; // moves per second
-    const BOOST_SPEED = 14;
-    const COMBO_WINDOW = 2000; // ms
+    // ═══════════════════════════════════════════════════
+    //  CONFIG
+    // ═══════════════════════════════════════════════════
+    const G = 24;                    // grid size
+    const BASE_SPEED = 7;
+    const BOOST_MULT = 1.8;
+    const COMBO_WINDOW = 2200;
+    const LEVEL_THRESHOLD = 50;      // points per level
+    const POWERUP_CHANCE = 0.18;     // 18% chance food is a powerup
+    const SHIELD_DURATION = 6000;
+    const MAGNET_DURATION = 8000;
+    const SLOW_DURATION = 5000;
 
-    // ─── STATE ───
-    let state = 'menu'; // menu | playing | dead
-    let score = 0;
-    let highScore = parseInt(localStorage.getItem('cosmicSerpentHigh') || '0');
-    let snake = [];
-    let direction = { x: 1, y: 0, z: 0 };
-    let nextDirection = { x: 1, y: 0, z: 0 };
-    let food = null;
-    let moveTimer = 0;
-    let boosting = false;
-    let combo = 0;
-    let lastEatTime = 0;
-    let particles = [];
-    let trailParticles = [];
+    // ═══════════════════════════════════════════════════
+    //  STATE
+    // ═══════════════════════════════════════════════════
+    let state = 'menu';
+    let score = 0, highScore = +(localStorage.getItem('cs2hi') || 0);
+    let level = 1;
+    let snake = [], dir = {x:1,z:0}, nextDir = {x:1,z:0};
+    let food = null, foodType = 'normal';
+    let moveTimer = 0, boosting = false;
+    let combo = 0, lastEat = 0;
+    let shieldEnd = 0, magnetEnd = 0, slowEnd = 0;
+    let screenShake = 0;
+    let activePowerup = null; // stored powerup
 
-    // ─── THREE.JS SETUP ───
+    // ═══════════════════════════════════════════════════
+    //  RENDERER + SCENE
+    // ═══════════════════════════════════════════════════
     const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x000011, 0.015);
+    scene.fog = new THREE.FogExp2(0x020010, 0.012);
 
-    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 200);
-    camera.position.set(10, 18, 18);
-    camera.lookAt(GRID_SIZE / 2, 0, GRID_SIZE / 2);
+    const camera = new THREE.PerspectiveCamera(55, innerWidth/innerHeight, 0.1, 300);
+    camera.position.set(12, 20, 22);
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    renderer.setSize(innerWidth, innerHeight);
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.2;
+    renderer.toneMappingExposure = 1.3;
     document.body.appendChild(renderer.domElement);
 
-    // Post-processing bloom
+    // ═══════════════════════════════════════════════════
+    //  POST-PROCESSING: Bloom + Chromatic Aberration
+    // ═══════════════════════════════════════════════════
     const composer = new EffectComposer(renderer);
     composer.addPass(new RenderPass(scene, camera));
-    const bloomPass = new UnrealBloomPass(
-      new THREE.Vector2(window.innerWidth, window.innerHeight),
-      1.5, 0.4, 0.85
-    );
-    bloomPass.threshold = 0.1;
-    bloomPass.strength = 2.0;
-    bloomPass.radius = 0.8;
-    composer.addPass(bloomPass);
 
-    // ─── LIGHTING ───
-    const ambientLight = new THREE.AmbientLight(0x111133, 0.5);
-    scene.add(ambientLight);
+    const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 1.5, 0.4, 0.85);
+    bloom.threshold = 0.08; bloom.strength = 2.2; bloom.radius = 0.9;
+    composer.addPass(bloom);
 
-    const pointLight = new THREE.PointLight(0x0088ff, 2, 50);
-    pointLight.position.set(GRID_SIZE / 2, 15, GRID_SIZE / 2);
-    scene.add(pointLight);
+    // Chromatic aberration + vignette combined
+    const postFX = {
+      uniforms: {
+        tDiffuse: { value: null },
+        aberration: { value: 0.002 },
+        vignetteStrength: { value: 0.45 },
+        time: { value: 0 },
+      },
+      vertexShader: `varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }`,
+      fragmentShader: `
+        uniform sampler2D tDiffuse;
+        uniform float aberration, vignetteStrength, time;
+        varying vec2 vUv;
+        void main(){
+          float ca = aberration + sin(time*2.0)*0.0005;
+          float r = texture2D(tDiffuse, vUv + vec2(ca, 0.0)).r;
+          float g = texture2D(tDiffuse, vUv).g;
+          float b = texture2D(tDiffuse, vUv - vec2(ca, 0.0)).b;
+          vec3 col = vec3(r, g, b);
+          // scanlines
+          col *= 0.95 + 0.05 * sin(vUv.y * 800.0 + time * 5.0);
+          // vignette
+          float d = distance(vUv, vec2(0.5));
+          col *= 1.0 - d * d * vignetteStrength * 2.0;
+          gl_FragColor = vec4(col, 1.0);
+        }
+      `,
+    };
+    const postPass = new ShaderPass(postFX);
+    composer.addPass(postPass);
 
-    // ─── STARFIELD ───
-    const starGeo = new THREE.BufferGeometry();
-    const starCount = 2000;
-    const starPositions = new Float32Array(starCount * 3);
-    const starColors = new Float32Array(starCount * 3);
-    for (let i = 0; i < starCount; i++) {
-      starPositions[i * 3] = (Math.random() - 0.5) * 200;
-      starPositions[i * 3 + 1] = (Math.random() - 0.5) * 200;
-      starPositions[i * 3 + 2] = (Math.random() - 0.5) * 200;
-      const c = new THREE.Color().setHSL(Math.random() * 0.2 + 0.5, 0.8, 0.6 + Math.random() * 0.4);
-      starColors[i * 3] = c.r;
-      starColors[i * 3 + 1] = c.g;
-      starColors[i * 3 + 2] = c.b;
+    // ═══════════════════════════════════════════════════
+    //  LIGHTING
+    // ═══════════════════════════════════════════════════
+    scene.add(new THREE.AmbientLight(0x0a0a20, 0.6));
+    const sunLight = new THREE.DirectionalLight(0x4466ff, 0.4);
+    sunLight.position.set(20, 30, 10);
+    scene.add(sunLight);
+
+    // Dynamic head light
+    const headLight = new THREE.PointLight(0x00ffff, 2, 8);
+    scene.add(headLight);
+
+    // ═══════════════════════════════════════════════════
+    //  PROCEDURAL NEBULA SKYBOX (shader on huge sphere)
+    // ═══════════════════════════════════════════════════
+    const nebulaMat = new THREE.ShaderMaterial({
+      side: THREE.BackSide,
+      uniforms: { time: { value: 0 } },
+      vertexShader: `varying vec3 vPos; void main(){ vPos = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.); }`,
+      fragmentShader: `
+        uniform float time;
+        varying vec3 vPos;
+
+        // simplex-ish noise
+        float hash(vec3 p){ return fract(sin(dot(p, vec3(127.1,311.7,74.7)))*43758.5453); }
+        float noise(vec3 p){
+          vec3 i=floor(p), f=fract(p);
+          f=f*f*(3.0-2.0*f);
+          return mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),f.x),
+                        mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),
+                     mix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),
+                        mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y),f.z);
+        }
+        float fbm(vec3 p){ float v=0., a=0.5; for(int i=0;i<5;i++){ v+=a*noise(p); p*=2.1; a*=0.5; } return v; }
+
+        void main(){
+          vec3 d = normalize(vPos);
+          float n = fbm(d * 3.0 + time * 0.02);
+          float n2 = fbm(d * 5.0 - time * 0.015);
+          vec3 col = vec3(0.03, 0.0, 0.06);
+          col += vec3(0.15, 0.0, 0.35) * pow(n, 2.0);
+          col += vec3(0.0, 0.2, 0.5) * pow(n2, 3.0);
+          col += vec3(0.4, 0.1, 0.3) * pow(n * n2, 2.5);
+          // stars
+          float star = pow(hash(floor(d * 400.0)), 20.0);
+          col += vec3(star) * 1.5;
+          gl_FragColor = vec4(col, 1.0);
+        }
+      `,
+    });
+    scene.add(new THREE.Mesh(new THREE.SphereGeometry(150, 32, 32), nebulaMat));
+
+    // ═══════════════════════════════════════════════════
+    //  GRID FLOOR (custom shader)
+    // ═══════════════════════════════════════════════════
+    const gridMat = new THREE.ShaderMaterial({
+      transparent: true,
+      uniforms: { time: { value: 0 }, level: { value: 1 } },
+      vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.); }`,
+      fragmentShader: `
+        uniform float time, level;
+        varying vec2 vUv;
+        void main(){
+          vec2 uv = vUv * float(${G});
+          vec2 g = abs(fract(uv - 0.5) - 0.5);
+          float line = min(g.x, g.y);
+          float alpha = 1.0 - smoothstep(0.0, 0.025, line);
+          // hue shift by level
+          float hue = mod(0.55 + float(int(level)-1) * 0.08 + time * 0.02, 1.0);
+          // HSL to RGB approx
+          vec3 c = 0.5 + 0.5*cos(6.283*(hue + vec3(0.0, 0.33, 0.67)));
+          // pulse from center
+          float dist = distance(vUv, vec2(0.5));
+          float pulse = sin(dist * 20.0 - time * 3.0) * 0.15 + 0.85;
+          gl_FragColor = vec4(c * alpha * pulse * 0.6, alpha * 0.5);
+        }
+      `,
+    });
+    const gridPlane = new THREE.Mesh(new THREE.PlaneGeometry(G, G), gridMat);
+    gridPlane.rotation.x = -Math.PI / 2;
+    gridPlane.position.set(G/2 - 0.5, -0.01, G/2 - 0.5);
+    scene.add(gridPlane);
+
+    // Boundary pillars (corner glow)
+    const pillarGeo = new THREE.CylinderGeometry(0.08, 0.08, 3, 8);
+    const pillarMat = new THREE.MeshBasicMaterial({ color: 0x0088ff, transparent: true, opacity: 0.4 });
+    [[-0.5,-0.5],[G-0.5,-0.5],[G-0.5,G-0.5],[-0.5,G-0.5]].forEach(([x,z]) => {
+      const p = new THREE.Mesh(pillarGeo, pillarMat);
+      p.position.set(x, 1.5, z);
+      scene.add(p);
+      const light = new THREE.PointLight(0x0044ff, 0.5, 4);
+      light.position.set(x, 2, z);
+      scene.add(light);
+    });
+
+    // ═══════════════════════════════════════════════════
+    //  GPU TRAIL PARTICLES (instanced)
+    // ═══════════════════════════════════════════════════
+    const TRAIL_COUNT = 600;
+    const trailGeo = new THREE.InstancedBufferGeometry().copy(new THREE.PlaneGeometry(0.12, 0.12));
+    const trailOffsets = new Float32Array(TRAIL_COUNT * 3);
+    const trailAlphas = new Float32Array(TRAIL_COUNT);
+    const trailColors = new Float32Array(TRAIL_COUNT * 3);
+    trailGeo.setAttribute('offset', new THREE.InstancedBufferAttribute(trailOffsets, 3));
+    trailGeo.setAttribute('alpha', new THREE.InstancedBufferAttribute(trailAlphas, 1));
+    trailGeo.setAttribute('color', new THREE.InstancedBufferAttribute(trailColors, 3));
+
+    const trailMat = new THREE.ShaderMaterial({
+      transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+      vertexShader: `
+        attribute vec3 offset; attribute float alpha; attribute vec3 color;
+        varying float vAlpha; varying vec3 vColor;
+        void main(){
+          vAlpha = alpha; vColor = color;
+          vec3 pos = position + offset;
+          // billboard
+          vec4 mvPos = modelViewMatrix * vec4(offset, 1.0);
+          mvPos.xy += position.xy * 0.12;
+          gl_Position = projectionMatrix * mvPos;
+        }
+      `,
+      fragmentShader: `
+        varying float vAlpha; varying vec3 vColor;
+        void main(){
+          float d = distance(gl_PointCoord, vec2(0.5));
+          float a = vAlpha * smoothstep(0.5, 0.0, d);
+          gl_FragColor = vec4(vColor * 2.0, a);
+        }
+      `,
+    });
+    const trailMesh = new THREE.Mesh(trailGeo, trailMat);
+    trailMesh.frustumCulled = false;
+    scene.add(trailMesh);
+
+    let trailIdx = 0;
+    function emitTrail(x, y, z, r, g, b) {
+      const i = trailIdx % TRAIL_COUNT;
+      trailOffsets[i*3] = x + (Math.random()-0.5)*0.3;
+      trailOffsets[i*3+1] = y + Math.random()*0.2;
+      trailOffsets[i*3+2] = z + (Math.random()-0.5)*0.3;
+      trailAlphas[i] = 0.8 + Math.random()*0.2;
+      trailColors[i*3] = r; trailColors[i*3+1] = g; trailColors[i*3+2] = b;
+      trailIdx++;
     }
-    starGeo.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
-    starGeo.setAttribute('color', new THREE.BufferAttribute(starColors, 3));
-    const starMat = new THREE.PointsMaterial({ size: 0.3, vertexColors: true, transparent: true, opacity: 0.8 });
-    scene.add(new THREE.Points(starGeo, starMat));
 
-    // ─── GRID FLOOR ───
-    const gridHelper = new THREE.GridHelper(GRID_SIZE, GRID_SIZE, 0x003366, 0x001133);
-    gridHelper.position.set(GRID_SIZE / 2 - 0.5, -0.01, GRID_SIZE / 2 - 0.5);
-    scene.add(gridHelper);
+    function updateTrails(dt) {
+      for (let i = 0; i < TRAIL_COUNT; i++) {
+        trailAlphas[i] = Math.max(0, trailAlphas[i] - dt * 1.5);
+        trailOffsets[i*3+1] += dt * 0.5; // float up
+      }
+      trailGeo.attributes.offset.needsUpdate = true;
+      trailGeo.attributes.alpha.needsUpdate = true;
+    }
 
-    // Boundary glow lines
-    const boundaryMat = new THREE.LineBasicMaterial({ color: 0x0066ff, transparent: true, opacity: 0.3 });
-    const boundaryGeo = new THREE.BufferGeometry().setFromPoints([
-      new THREE.Vector3(-0.5, 0, -0.5),
-      new THREE.Vector3(GRID_SIZE - 0.5, 0, -0.5),
-      new THREE.Vector3(GRID_SIZE - 0.5, 0, GRID_SIZE - 0.5),
-      new THREE.Vector3(-0.5, 0, GRID_SIZE - 0.5),
-      new THREE.Vector3(-0.5, 0, -0.5),
-    ]);
-    scene.add(new THREE.Line(boundaryGeo, boundaryMat));
+    // ═══════════════════════════════════════════════════
+    //  EXPLOSION PARTICLES (mesh-based for eat/death)
+    // ═══════════════════════════════════════════════════
+    const expParticles = [];
+    const expGeo = new THREE.SphereGeometry(0.06, 4, 4);
 
-    // ─── SNAKE MESHES ───
+    function explode(pos, count, hueBase) {
+      for (let i = 0; i < count; i++) {
+        const hue = (hueBase + Math.random() * 0.2) % 1;
+        const mat = new THREE.MeshBasicMaterial({
+          color: new THREE.Color().setHSL(hue, 1, 0.7), transparent: true
+        });
+        const m = new THREE.Mesh(expGeo, mat);
+        m.position.set(pos.x, 0.4, pos.z);
+        scene.add(m);
+        expParticles.push({
+          mesh: m, life: 1,
+          vel: new THREE.Vector3((Math.random()-0.5)*0.5, Math.random()*0.5+0.2, (Math.random()-0.5)*0.5),
+        });
+      }
+    }
+
+    function updateExplosions(dt) {
+      for (let i = expParticles.length-1; i >= 0; i--) {
+        const p = expParticles[i];
+        p.life -= dt * 2.5;
+        p.mesh.position.add(p.vel.clone().multiplyScalar(dt * 2));
+        p.vel.y -= dt * 3;
+        p.mesh.material.opacity = Math.max(0, p.life);
+        p.mesh.scale.setScalar(Math.max(0.01, p.life));
+        if (p.life <= 0) { scene.remove(p.mesh); expParticles.splice(i, 1); }
+      }
+    }
+
+    // ═══════════════════════════════════════════════════
+    //  SNAKE
+    // ═══════════════════════════════════════════════════
     const snakeMeshes = [];
-    const snakeHeadGeo = new THREE.SphereGeometry(0.45, 16, 16);
-    const snakeBodyGeo = new THREE.SphereGeometry(0.38, 12, 12);
+    const headGeo = new THREE.DodecahedronGeometry(0.45, 1);
+    const bodyGeo = new THREE.SphereGeometry(0.36, 10, 10);
 
-    function getSnakeMaterial(index, total) {
-      const hue = (0.5 + index * 0.02) % 1;
-      const emissiveIntensity = index === 0 ? 2.0 : 0.8;
-      return new THREE.MeshStandardMaterial({
-        color: new THREE.Color().setHSL(hue, 0.9, 0.5),
-        emissive: new THREE.Color().setHSL(hue, 1, 0.3),
-        emissiveIntensity,
-        metalness: 0.7,
-        roughness: 0.2,
+    // Neon fresnel shader for snake
+    function snakeShaderMat(isHead) {
+      return new THREE.ShaderMaterial({
+        transparent: true,
+        uniforms: {
+          time: { value: 0 },
+          hue: { value: 0.5 },
+          intensity: { value: isHead ? 3.0 : 1.5 },
+          shielded: { value: 0 },
+        },
+        vertexShader: `
+          varying vec3 vNormal, vViewDir;
+          void main(){
+            vNormal = normalize(normalMatrix * normal);
+            vec4 mv = modelViewMatrix * vec4(position, 1.0);
+            vViewDir = normalize(-mv.xyz);
+            gl_Position = projectionMatrix * mv;
+          }
+        `,
+        fragmentShader: `
+          uniform float time, hue, intensity, shielded;
+          varying vec3 vNormal, vViewDir;
+          vec3 hsl2rgb(float h, float s, float l){
+            vec3 c = 0.5 + 0.5*cos(6.283*(h + vec3(0.,0.33,0.67)));
+            return mix(vec3(l), c, s);
+          }
+          void main(){
+            float fresnel = pow(1.0 - max(dot(vNormal, vViewDir), 0.0), 2.5);
+            float pulse = sin(time * 3.0) * 0.15 + 0.85;
+            vec3 col = hsl2rgb(hue, 0.9, 0.55) * intensity * pulse;
+            // shield overlay
+            if(shielded > 0.5){
+              float hex = sin(vNormal.x*20.0+time*5.0)*sin(vNormal.y*20.0+time*3.0);
+              col += vec3(0.2, 0.8, 1.0) * max(hex, 0.0) * 2.0;
+            }
+            float a = 0.4 + fresnel * 0.6;
+            gl_FragColor = vec4(col, a);
+          }
+        `,
       });
     }
 
-    function updateSnakeMeshes() {
-      // Remove excess
+    function updateSnakeMeshes(time) {
       while (snakeMeshes.length > snake.length) {
-        const m = snakeMeshes.pop();
-        scene.remove(m);
-        if (m.light) scene.remove(m.light);
+        const m = snakeMeshes.pop(); scene.remove(m);
       }
-      // Add/update
+      const shielded = performance.now() < shieldEnd ? 1 : 0;
       for (let i = 0; i < snake.length; i++) {
-        let mesh = snakeMeshes[i];
-        if (!mesh) {
-          const geo = i === 0 ? snakeHeadGeo : snakeBodyGeo;
-          mesh = new THREE.Mesh(geo, getSnakeMaterial(i, snake.length));
-          if (i === 0) {
-            const headLight = new THREE.PointLight(0x00ffff, 1.5, 5);
-            mesh.add(headLight);
-            mesh.light = headLight;
-          }
-          scene.add(mesh);
-          snakeMeshes.push(mesh);
+        let m = snakeMeshes[i];
+        if (!m) {
+          m = new THREE.Mesh(i === 0 ? headGeo : bodyGeo, snakeShaderMat(i === 0));
+          scene.add(m);
+          snakeMeshes.push(m);
         }
-        // Update material color for chain effect
-        const hue = (0.5 + i * 0.015 + performance.now() * 0.0001) % 1;
-        mesh.material.color.setHSL(hue, 0.9, 0.5);
-        mesh.material.emissive.setHSL(hue, 1, 0.3);
+        const hue = (0.5 + i * 0.012 + time * 0.0001) % 1;
+        m.material.uniforms.time.value = time * 0.001;
+        m.material.uniforms.hue.value = hue;
+        m.material.uniforms.shielded.value = shielded;
 
-        // Smooth position
-        const target = new THREE.Vector3(snake[i].x, i === 0 ? 0.3 : 0.2, snake[i].z);
-        mesh.position.lerp(target, 0.3);
+        const ty = i === 0 ? 0.35 + Math.sin(time * 0.006) * 0.08 : 0.2 + Math.sin(time * 0.004 + i) * 0.03;
+        const target = new THREE.Vector3(snake[i].x, ty, snake[i].z);
+        m.position.lerp(target, 0.35);
 
-        // Scale pulse for head
         if (i === 0) {
-          const pulse = 1 + Math.sin(performance.now() * 0.005) * 0.05;
-          mesh.scale.setScalar(pulse);
+          const pulse = 1 + Math.sin(time * 0.008) * 0.06;
+          m.scale.setScalar(pulse);
+          m.rotation.y = Math.atan2(dir.x, dir.z);
+          headLight.position.copy(m.position);
+          headLight.position.y += 0.5;
+          // emit trail
+          const c = new THREE.Color().setHSL(hue, 1, 0.6);
+          emitTrail(m.position.x, 0.1, m.position.z, c.r, c.g, c.b);
         }
       }
     }
 
-    // ─── FOOD ───
-    let foodMesh = null;
-    let foodLight = null;
-    const foodGeo = new THREE.OctahedronGeometry(0.35, 2);
+    // ═══════════════════════════════════════════════════
+    //  FOOD
+    // ═══════════════════════════════════════════════════
+    let foodMesh = null, foodLight = null;
+    const foodGeoNormal = new THREE.OctahedronGeometry(0.35, 2);
+    const foodGeoPower = new THREE.TorusKnotGeometry(0.25, 0.08, 64, 8, 2, 3);
 
     function spawnFood() {
       let pos;
-      do {
-        pos = {
-          x: Math.floor(Math.random() * GRID_SIZE),
-          z: Math.floor(Math.random() * GRID_SIZE),
-        };
-      } while (snake.some(s => s.x === pos.x && s.z === pos.z));
+      do { pos = { x: Math.floor(Math.random()*G), z: Math.floor(Math.random()*G) }; }
+      while (snake.some(s => s.x===pos.x && s.z===pos.z));
 
       food = pos;
+      foodType = Math.random() < POWERUP_CHANCE ? 'powerup' : 'normal';
 
-      if (foodMesh) {
-        scene.remove(foodMesh);
-        scene.remove(foodLight);
-      }
+      if (foodMesh) { scene.remove(foodMesh); scene.remove(foodLight); }
 
-      const hue = Math.random();
-      foodMesh = new THREE.Mesh(foodGeo, new THREE.MeshStandardMaterial({
+      const hue = foodType === 'powerup' ? 0.12 : Math.random();
+      const geo = foodType === 'powerup' ? foodGeoPower : foodGeoNormal;
+      foodMesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({
         color: new THREE.Color().setHSL(hue, 1, 0.6),
         emissive: new THREE.Color().setHSL(hue, 1, 0.4),
-        emissiveIntensity: 3,
-        metalness: 0.9,
-        roughness: 0.1,
+        emissiveIntensity: foodType === 'powerup' ? 5 : 3,
+        metalness: 0.9, roughness: 0.1,
       }));
-      foodMesh.position.set(food.x, 0.4, food.z);
+      foodMesh.position.set(food.x, 0.5, food.z);
       scene.add(foodMesh);
 
-      foodLight = new THREE.PointLight(new THREE.Color().setHSL(hue, 1, 0.5), 2, 6);
-      foodLight.position.set(food.x, 1, food.z);
+      foodLight = new THREE.PointLight(
+        new THREE.Color().setHSL(hue, 1, 0.5),
+        foodType === 'powerup' ? 3 : 2, 7
+      );
+      foodLight.position.set(food.x, 1.2, food.z);
       scene.add(foodLight);
     }
 
-    // ─── PARTICLES ───
-    const particleGeo = new THREE.SphereGeometry(0.08, 6, 6);
+    // ═══════════════════════════════════════════════════
+    //  POWER-UPS
+    // ═══════════════════════════════════════════════════
+    const POWERUPS = ['shield', 'magnet', 'slow', 'double'];
+    function grantPowerup() {
+      const type = POWERUPS[Math.floor(Math.random() * POWERUPS.length)];
+      const names = { shield: 'SHIELD', magnet: 'MAGNET', slow: 'SLOW-MO', double: 'DOUBLE PTS' };
+      showPowerupText(names[type]);
 
-    function spawnEatParticles(pos) {
-      for (let i = 0; i < 20; i++) {
-        const mat = new THREE.MeshBasicMaterial({
-          color: new THREE.Color().setHSL(Math.random(), 1, 0.7),
-          transparent: true,
-        });
-        const mesh = new THREE.Mesh(particleGeo, mat);
-        mesh.position.set(pos.x, 0.4, pos.z);
-        scene.add(mesh);
-        particles.push({
-          mesh,
-          velocity: new THREE.Vector3(
-            (Math.random() - 0.5) * 0.3,
-            Math.random() * 0.3,
-            (Math.random() - 0.5) * 0.3
-          ),
-          life: 1,
-        });
-      }
+      if (type === 'shield') shieldEnd = performance.now() + SHIELD_DURATION;
+      if (type === 'magnet') magnetEnd = performance.now() + MAGNET_DURATION;
+      if (type === 'slow') slowEnd = performance.now() + SLOW_DURATION;
+      if (type === 'double') activePowerup = 'double';
     }
 
-    function updateParticles(dt) {
-      for (let i = particles.length - 1; i >= 0; i--) {
-        const p = particles[i];
-        p.life -= dt * 2;
-        p.mesh.position.add(p.velocity.clone().multiplyScalar(dt * 3));
-        p.velocity.y -= dt * 2;
-        p.mesh.material.opacity = p.life;
-        p.mesh.scale.setScalar(p.life);
-        if (p.life <= 0) {
-          scene.remove(p.mesh);
-          particles.splice(i, 1);
-        }
-      }
+    function showPowerupText(text) {
+      const el = document.getElementById('powerup-text');
+      el.textContent = text;
+      el.classList.add('show');
+      setTimeout(() => el.classList.remove('show'), 1200);
     }
 
-    // ─── GAME LOGIC ───
+    // ═══════════════════════════════════════════════════
+    //  GAME LOGIC
+    // ═══════════════════════════════════════════════════
     function initGame() {
-      // Clear old snake
-      snakeMeshes.forEach(m => {
-        scene.remove(m);
-        if (m.light) scene.remove(m.light);
-      });
+      snakeMeshes.forEach(m => scene.remove(m));
       snakeMeshes.length = 0;
-
-      const center = Math.floor(GRID_SIZE / 2);
-      snake = [
-        { x: center, z: center },
-        { x: center - 1, z: center },
-        { x: center - 2, z: center },
-      ];
-      direction = { x: 1, y: 0, z: 0 };
-      nextDirection = { x: 1, y: 0, z: 0 };
-      score = 0;
-      combo = 0;
-      moveTimer = 0;
-      updateScore();
+      const c = Math.floor(G/2);
+      snake = [{x:c,z:c},{x:c-1,z:c},{x:c-2,z:c}];
+      dir = {x:1,z:0}; nextDir = {x:1,z:0};
+      score = 0; combo = 0; level = 1; moveTimer = 0;
+      shieldEnd = 0; magnetEnd = 0; slowEnd = 0; activePowerup = null;
+      updateHUD();
       spawnFood();
     }
 
     function moveSnake() {
-      direction = { ...nextDirection };
-
+      dir = {...nextDir};
       const head = snake[0];
-      const newHead = {
-        x: head.x + direction.x,
-        z: head.z + direction.z,
-      };
 
-      // Wall collision — wrap around
-      if (newHead.x < 0) newHead.x = GRID_SIZE - 1;
-      if (newHead.x >= GRID_SIZE) newHead.x = 0;
-      if (newHead.z < 0) newHead.z = GRID_SIZE - 1;
-      if (newHead.z >= GRID_SIZE) newHead.z = 0;
+      // magnet: auto-steer toward food
+      if (performance.now() < magnetEnd && food) {
+        const dx = food.x - head.x, dz = food.z - head.z;
+        if (Math.abs(dx) >= Math.abs(dz)) {
+          const nd = {x: dx > 0 ? 1 : -1, z: 0};
+          if (nd.x !== -dir.x || dir.z !== 0) dir = nd;
+        } else {
+          const nd = {x: 0, z: dz > 0 ? 1 : -1};
+          if (nd.z !== -dir.z || dir.x !== 0) dir = nd;
+        }
+      }
 
-      // Self collision
-      if (snake.some(s => s.x === newHead.x && s.z === newHead.z)) {
+      let nh = { x: head.x + dir.x, z: head.z + dir.z };
+      // wrap
+      if (nh.x < 0) nh.x = G-1; if (nh.x >= G) nh.x = 0;
+      if (nh.z < 0) nh.z = G-1; if (nh.z >= G) nh.z = 0;
+
+      // self collision
+      if (snake.some(s => s.x===nh.x && s.z===nh.z)) {
+        if (performance.now() < shieldEnd) {
+          // shield saves you — just skip this move
+          return;
+        }
         gameOver();
         return;
       }
 
-      snake.unshift(newHead);
+      snake.unshift(nh);
 
-      // Eat food
-      if (food && newHead.x === food.x && newHead.z === food.z) {
+      if (food && nh.x === food.x && nh.z === food.z) {
         const now = performance.now();
-        if (now - lastEatTime < COMBO_WINDOW) {
-          combo++;
-        } else {
-          combo = 1;
-        }
-        lastEatTime = now;
+        combo = (now - lastEat < COMBO_WINDOW) ? combo + 1 : 1;
+        lastEat = now;
 
-        const points = 10 * combo;
-        score += points;
-        updateScore();
-        spawnEatParticles(food);
+        let pts = 10 * combo;
+        if (activePowerup === 'double') { pts *= 2; activePowerup = null; }
+        score += pts;
+
+        // level up
+        const newLevel = Math.floor(score / LEVEL_THRESHOLD) + 1;
+        if (newLevel > level) { level = newLevel; screenShake = 0.4; }
+
+        if (foodType === 'powerup') grantPowerup();
+
+        explode(food, 25, Math.random());
+        screenShake = Math.max(screenShake, 0.15);
         spawnFood();
-
-        // Show combo
-        if (combo > 1) {
-          const comboEl = document.getElementById('combo');
-          comboEl.textContent = `COMBO x${combo} (+${points})`;
-          comboEl.style.opacity = '1';
-          setTimeout(() => comboEl.style.opacity = '0', 1000);
-        }
       } else {
         snake.pop();
       }
+
+      updateHUD();
     }
 
     function gameOver() {
       state = 'dead';
-      if (score > highScore) {
-        highScore = score;
-        localStorage.setItem('cosmicSerpentHigh', String(highScore));
-      }
-      document.getElementById('final-score').textContent = `SCORE: ${score}`;
-      document.getElementById('high-score').textContent = `HIGH SCORE: ${highScore}`;
+      if (score > highScore) { highScore = score; localStorage.setItem('cs2hi', String(highScore)); }
+      document.getElementById('final-score').textContent = `SCORE: ${score} (LVL ${level})`;
+      document.getElementById('final-hi').textContent = `HIGH SCORE: ${highScore}`;
       document.getElementById('game-over').style.display = 'flex';
-
-      // Death explosion
-      snake.forEach(s => spawnEatParticles(s));
+      snake.forEach(s => explode(s, 8, 0));
+      screenShake = 1.0;
     }
 
-    function updateScore() {
-      document.getElementById('score').textContent = `SCORE: ${score}`;
+    function updateHUD() {
+      document.getElementById('score-val').textContent = score;
+      document.getElementById('combo-val').textContent = combo > 1 ? `x${combo}` : '-';
+      document.getElementById('combo-val').style.fontSize = combo > 3 ? '28px' : '22px';
+      document.getElementById('level-val').textContent = level;
+      document.getElementById('length-val').textContent = snake.length;
     }
 
-    // ─── INPUT ───
-    const keys = {};
-
-    window.addEventListener('keydown', (e) => {
-      keys[e.key.toLowerCase()] = true;
-
-      if (e.key === 'Shift') boosting = true;
+    // ═══════════════════════════════════════════════════
+    //  INPUT
+    // ═══════════════════════════════════════════════════
+    window.addEventListener('keydown', e => {
+      if (e.key === 'Shift') { boosting = true; return; }
 
       if (state === 'menu') {
         state = 'playing';
         document.getElementById('overlay').style.display = 'none';
-        initGame();
-        return;
+        initGame(); return;
       }
-
       if (state === 'dead') {
         state = 'playing';
         document.getElementById('game-over').style.display = 'none';
-        initGame();
-        return;
+        initGame(); return;
       }
 
-      // Direction
       const k = e.key.toLowerCase();
-      if ((k === 'w' || k === 'arrowup') && direction.z !== 1) {
-        nextDirection = { x: 0, y: 0, z: -1 };
-      } else if ((k === 's' || k === 'arrowdown') && direction.z !== -1) {
-        nextDirection = { x: 0, y: 0, z: 1 };
-      } else if ((k === 'a' || k === 'arrowleft') && direction.x !== 1) {
-        nextDirection = { x: -1, y: 0, z: 0 };
-      } else if ((k === 'd' || k === 'arrowright') && direction.x !== -1) {
-        nextDirection = { x: 1, y: 0, z: 0 };
-      }
+      if ((k==='w'||k==='arrowup') && dir.z !== 1) nextDir = {x:0,z:-1};
+      else if ((k==='s'||k==='arrowdown') && dir.z !== -1) nextDir = {x:0,z:1};
+      else if ((k==='a'||k==='arrowleft') && dir.x !== 1) nextDir = {x:-1,z:0};
+      else if ((k==='d'||k==='arrowright') && dir.x !== -1) nextDir = {x:1,z:0};
     });
+    window.addEventListener('keyup', e => { if (e.key === 'Shift') boosting = false; });
 
-    window.addEventListener('keyup', (e) => {
-      keys[e.key.toLowerCase()] = false;
-      if (e.key === 'Shift') boosting = false;
-    });
-
-    // Mobile input
-    window.mobileInput = function(dir) {
-      if (state === 'menu') {
-        state = 'playing';
-        document.getElementById('overlay').style.display = 'none';
-        initGame();
+    // Mobile / touch
+    window.mobileInput = function(d) {
+      if (state !== 'playing') {
+        if (state === 'menu') { state = 'playing'; document.getElementById('overlay').style.display = 'none'; initGame(); }
+        if (state === 'dead') { state = 'playing'; document.getElementById('game-over').style.display = 'none'; initGame(); }
         return;
       }
-      if (state === 'dead') {
-        state = 'playing';
-        document.getElementById('game-over').style.display = 'none';
-        initGame();
-        return;
-      }
-
-      if (dir === 'up' && direction.z !== 1) nextDirection = { x: 0, y: 0, z: -1 };
-      if (dir === 'down' && direction.z !== -1) nextDirection = { x: 0, y: 0, z: 1 };
-      if (dir === 'left' && direction.x !== 1) nextDirection = { x: -1, y: 0, z: 0 };
-      if (dir === 'right' && direction.x !== -1) nextDirection = { x: 1, y: 0, z: 0 };
+      if (d==='up' && dir.z !== 1) nextDir = {x:0,z:-1};
+      if (d==='down' && dir.z !== -1) nextDir = {x:0,z:1};
+      if (d==='left' && dir.x !== 1) nextDir = {x:-1,z:0};
+      if (d==='right' && dir.x !== -1) nextDir = {x:1,z:0};
     };
-
-    // Touch swipe
     let touchStart = null;
-    window.addEventListener('touchstart', (e) => {
-      touchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-    });
-    window.addEventListener('touchend', (e) => {
+    window.addEventListener('touchstart', e => { touchStart = {x:e.touches[0].clientX, y:e.touches[0].clientY}; });
+    window.addEventListener('touchend', e => {
       if (!touchStart) return;
-      const dx = e.changedTouches[0].clientX - touchStart.x;
-      const dy = e.changedTouches[0].clientY - touchStart.y;
-      if (Math.abs(dx) > Math.abs(dy)) {
-        window.mobileInput(dx > 0 ? 'right' : 'left');
-      } else {
-        window.mobileInput(dy > 0 ? 'down' : 'up');
-      }
+      const dx = e.changedTouches[0].clientX - touchStart.x, dy = e.changedTouches[0].clientY - touchStart.y;
+      Math.abs(dx) > Math.abs(dy) ? mobileInput(dx>0?'right':'left') : mobileInput(dy>0?'down':'up');
       touchStart = null;
     });
 
-    // ─── CAMERA ───
-    const cameraTarget = new THREE.Vector3();
-    const cameraOffset = new THREE.Vector3(0, 14, 12);
+    // ═══════════════════════════════════════════════════
+    //  CAMERA (smooth follow + screen shake)
+    // ═══════════════════════════════════════════════════
+    const camTarget = new THREE.Vector3(G/2, 0, G/2);
+    const camOffset = new THREE.Vector3(0, 16, 14);
 
-    function updateCamera() {
-      if (snake.length === 0) return;
-      const head = snake[0];
-      const target = new THREE.Vector3(head.x, 0, head.z);
-      cameraTarget.lerp(target, 0.05);
+    function updateCamera(dt) {
+      if (!snake.length) return;
+      const h = snake[0];
+      camTarget.lerp(new THREE.Vector3(h.x, 0, h.z), 0.06);
+      const ideal = camTarget.clone().add(camOffset);
+      camera.position.lerp(ideal, 0.04);
 
-      const idealPos = cameraTarget.clone().add(cameraOffset);
-      camera.position.lerp(idealPos, 0.03);
-      camera.lookAt(cameraTarget);
+      // screen shake
+      if (screenShake > 0) {
+        camera.position.x += (Math.random()-0.5) * screenShake;
+        camera.position.y += (Math.random()-0.5) * screenShake * 0.5;
+        camera.position.z += (Math.random()-0.5) * screenShake;
+        screenShake *= 0.9;
+        if (screenShake < 0.01) screenShake = 0;
+      }
+
+      camera.lookAt(camTarget);
     }
 
-    // ─── ANIMATION LOOP ───
-    let lastTime = performance.now();
+    // ═══════════════════════════════════════════════════
+    //  GAME LOOP
+    // ═══════════════════════════════════════════════════
+    let lastT = performance.now();
 
     function animate() {
       requestAnimationFrame(animate);
-
       const now = performance.now();
-      const dt = Math.min((now - lastTime) / 1000, 0.1);
-      lastTime = now;
+      const dt = Math.min((now - lastT) / 1000, 0.1);
+      lastT = now;
 
-      // Rotate starfield slowly
-      scene.children.forEach(c => {
-        if (c instanceof THREE.Points) {
-          c.rotation.y += dt * 0.01;
-        }
-      });
+      // update shader uniforms
+      nebulaMat.uniforms.time.value = now * 0.001;
+      gridMat.uniforms.time.value = now * 0.001;
+      gridMat.uniforms.level.value = level;
+      postPass.uniforms.time.value = now * 0.001;
+
+      // boost aberration during screen shake
+      postPass.uniforms.aberration.value = 0.002 + screenShake * 0.01;
 
       if (state === 'playing') {
-        const speed = boosting ? BOOST_SPEED : BASE_SPEED;
-        document.getElementById('speed-indicator').textContent = `WARP ${boosting ? '2' : '1'}`;
-        document.getElementById('speed-indicator').style.color = boosting ? '#f80' : '#0f0';
+        const slowActive = now < slowEnd;
+        const speedMult = boosting ? BOOST_MULT : 1;
+        const slowMult = slowActive ? 0.5 : 1;
+        const levelSpeed = BASE_SPEED + (level - 1) * 0.5;
+        const speed = levelSpeed * speedMult * slowMult;
 
         moveTimer += dt;
-        if (moveTimer >= 1 / speed) {
-          moveTimer = 0;
-          moveSnake();
-        }
+        if (moveTimer >= 1 / speed) { moveTimer = 0; moveSnake(); }
 
-        updateSnakeMeshes();
-        updateCamera();
+        updateSnakeMeshes(now);
+        updateCamera(dt);
       }
 
-      // Animate food
+      // food anim
       if (foodMesh) {
-        foodMesh.rotation.y += dt * 2;
-        foodMesh.rotation.x += dt * 1.5;
-        foodMesh.position.y = 0.4 + Math.sin(now * 0.003) * 0.15;
+        foodMesh.rotation.y += dt * 2.5;
+        foodMesh.rotation.x += dt * 1.8;
+        const bob = foodType === 'powerup' ? 0.25 : 0.15;
+        foodMesh.position.y = 0.5 + Math.sin(now * 0.004) * bob;
+        // powerup scale pulse
+        if (foodType === 'powerup') {
+          const s = 1 + Math.sin(now * 0.006) * 0.15;
+          foodMesh.scale.setScalar(s);
+        }
       }
 
-      updateParticles(dt);
+      updateTrails(dt);
+      updateExplosions(dt);
 
       composer.render();
     }
 
-    // ─── RESIZE ───
+    // Resize
     window.addEventListener('resize', () => {
-      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.aspect = innerWidth / innerHeight;
       camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
-      composer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setSize(innerWidth, innerHeight);
+      composer.setSize(innerWidth, innerHeight);
     });
 
     animate();
