@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>COSMIC SERPENT — 3D Snake Game</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      overflow: hidden;
+      background: #000;
+      font-family: 'Courier New', monospace;
+      cursor: none;
+    }
+    canvas { display: block; }
+
+    #ui {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    #score {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: #0ff;
+      font-size: 24px;
+      text-shadow: 0 0 20px #0ff, 0 0 40px #0ff;
+      z-index: 10;
+      letter-spacing: 4px;
+    }
+
+    #combo {
+      position: fixed;
+      top: 55px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: #f0f;
+      font-size: 14px;
+      text-shadow: 0 0 10px #f0f;
+      z-index: 10;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    #speed-indicator {
+      position: fixed;
+      bottom: 20px;
+      left: 20px;
+      color: #0f0;
+      font-size: 12px;
+      text-shadow: 0 0 10px #0f0;
+      z-index: 10;
+    }
+
+    #overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.85);
+      z-index: 20;
+      backdrop-filter: blur(10px);
+    }
+
+    #overlay h1 {
+      font-size: 72px;
+      color: #0ff;
+      text-shadow: 0 0 30px #0ff, 0 0 60px #08f, 0 0 90px #04f;
+      margin-bottom: 10px;
+      letter-spacing: 8px;
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    #overlay .subtitle {
+      color: #f0f;
+      font-size: 16px;
+      letter-spacing: 6px;
+      margin-bottom: 40px;
+      text-shadow: 0 0 15px #f0f;
+    }
+
+    #overlay .instructions {
+      color: #888;
+      font-size: 14px;
+      line-height: 2;
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    #overlay .instructions span {
+      color: #0ff;
+    }
+
+    #overlay .start-text {
+      color: #0f0;
+      font-size: 18px;
+      animation: blink 1s ease-in-out infinite;
+      letter-spacing: 4px;
+    }
+
+    #game-over {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.9);
+      z-index: 20;
+      backdrop-filter: blur(10px);
+    }
+
+    #game-over h1 {
+      font-size: 56px;
+      color: #f00;
+      text-shadow: 0 0 30px #f00, 0 0 60px #800;
+      margin-bottom: 20px;
+      letter-spacing: 6px;
+    }
+
+    #game-over .final-score {
+      color: #0ff;
+      font-size: 28px;
+      margin-bottom: 10px;
+      text-shadow: 0 0 15px #0ff;
+    }
+
+    #game-over .high-score {
+      color: #ff0;
+      font-size: 16px;
+      margin-bottom: 30px;
+      text-shadow: 0 0 10px #ff0;
+    }
+
+    #game-over .restart-text {
+      color: #0f0;
+      font-size: 16px;
+      animation: blink 1s ease-in-out infinite;
+      letter-spacing: 3px;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    /* Mobile controls */
+    #mobile-controls {
+      display: none;
+      position: fixed;
+      bottom: 60px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 15;
+      pointer-events: all;
+    }
+
+    .d-pad {
+      display: grid;
+      grid-template-columns: 60px 60px 60px;
+      grid-template-rows: 60px 60px 60px;
+      gap: 4px;
+    }
+
+    .d-pad button {
+      background: rgba(0, 255, 255, 0.15);
+      border: 1px solid rgba(0, 255, 255, 0.4);
+      color: #0ff;
+      font-size: 24px;
+      border-radius: 8px;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .d-pad button:active {
+      background: rgba(0, 255, 255, 0.4);
+    }
+
+    .d-pad .empty { background: none; border: none; }
+
+    @media (max-width: 768px) {
+      #mobile-controls { display: block; }
+    }
+  </style>
+</head>
+<body>
+  <div id="score">SCORE: 0</div>
+  <div id="combo">COMBO x1</div>
+  <div id="speed-indicator">WARP 1</div>
+
+  <div id="overlay">
+    <h1>COSMIC SERPENT</h1>
+    <div class="subtitle">3D SNAKE IN SPACE</div>
+    <div class="instructions">
+      <span>WASD</span> or <span>ARROWS</span> — change direction<br>
+      <span>SHIFT</span> — boost speed<br>
+      Eat orbs to grow — avoid yourself<br>
+      Chain orbs quickly for <span>COMBO</span> multiplier
+    </div>
+    <div class="start-text">[ PRESS ANY KEY TO LAUNCH ]</div>
+  </div>
+
+  <div id="game-over">
+    <h1>GAME OVER</h1>
+    <div class="final-score" id="final-score">SCORE: 0</div>
+    <div class="high-score" id="high-score">HIGH SCORE: 0</div>
+    <div class="restart-text">[ PRESS ANY KEY TO RETRY ]</div>
+  </div>
+
+  <div id="mobile-controls">
+    <div class="d-pad">
+      <div class="empty"></div>
+      <button onclick="mobileInput('up')">▲</button>
+      <div class="empty"></div>
+      <button onclick="mobileInput('left')">◄</button>
+      <div class="empty"></div>
+      <button onclick="mobileInput('right')">►</button>
+      <div class="empty"></div>
+      <button onclick="mobileInput('down')">▼</button>
+      <div class="empty"></div>
+    </div>
+  </div>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/"
+    }
+  }
+  </script>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+    import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+    import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+
+    // ─── CONFIG ───
+    const GRID_SIZE = 20;
+    const CELL = 1;
+    const BASE_SPEED = 8; // moves per second
+    const BOOST_SPEED = 14;
+    const COMBO_WINDOW = 2000; // ms
+
+    // ─── STATE ───
+    let state = 'menu'; // menu | playing | dead
+    let score = 0;
+    let highScore = parseInt(localStorage.getItem('cosmicSerpentHigh') || '0');
+    let snake = [];
+    let direction = { x: 1, y: 0, z: 0 };
+    let nextDirection = { x: 1, y: 0, z: 0 };
+    let food = null;
+    let moveTimer = 0;
+    let boosting = false;
+    let combo = 0;
+    let lastEatTime = 0;
+    let particles = [];
+    let trailParticles = [];
+
+    // ─── THREE.JS SETUP ───
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2(0x000011, 0.015);
+
+    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 200);
+    camera.position.set(10, 18, 18);
+    camera.lookAt(GRID_SIZE / 2, 0, GRID_SIZE / 2);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.2;
+    document.body.appendChild(renderer.domElement);
+
+    // Post-processing bloom
+    const composer = new EffectComposer(renderer);
+    composer.addPass(new RenderPass(scene, camera));
+    const bloomPass = new UnrealBloomPass(
+      new THREE.Vector2(window.innerWidth, window.innerHeight),
+      1.5, 0.4, 0.85
+    );
+    bloomPass.threshold = 0.1;
+    bloomPass.strength = 2.0;
+    bloomPass.radius = 0.8;
+    composer.addPass(bloomPass);
+
+    // ─── LIGHTING ───
+    const ambientLight = new THREE.AmbientLight(0x111133, 0.5);
+    scene.add(ambientLight);
+
+    const pointLight = new THREE.PointLight(0x0088ff, 2, 50);
+    pointLight.position.set(GRID_SIZE / 2, 15, GRID_SIZE / 2);
+    scene.add(pointLight);
+
+    // ─── STARFIELD ───
+    const starGeo = new THREE.BufferGeometry();
+    const starCount = 2000;
+    const starPositions = new Float32Array(starCount * 3);
+    const starColors = new Float32Array(starCount * 3);
+    for (let i = 0; i < starCount; i++) {
+      starPositions[i * 3] = (Math.random() - 0.5) * 200;
+      starPositions[i * 3 + 1] = (Math.random() - 0.5) * 200;
+      starPositions[i * 3 + 2] = (Math.random() - 0.5) * 200;
+      const c = new THREE.Color().setHSL(Math.random() * 0.2 + 0.5, 0.8, 0.6 + Math.random() * 0.4);
+      starColors[i * 3] = c.r;
+      starColors[i * 3 + 1] = c.g;
+      starColors[i * 3 + 2] = c.b;
+    }
+    starGeo.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+    starGeo.setAttribute('color', new THREE.BufferAttribute(starColors, 3));
+    const starMat = new THREE.PointsMaterial({ size: 0.3, vertexColors: true, transparent: true, opacity: 0.8 });
+    scene.add(new THREE.Points(starGeo, starMat));
+
+    // ─── GRID FLOOR ───
+    const gridHelper = new THREE.GridHelper(GRID_SIZE, GRID_SIZE, 0x003366, 0x001133);
+    gridHelper.position.set(GRID_SIZE / 2 - 0.5, -0.01, GRID_SIZE / 2 - 0.5);
+    scene.add(gridHelper);
+
+    // Boundary glow lines
+    const boundaryMat = new THREE.LineBasicMaterial({ color: 0x0066ff, transparent: true, opacity: 0.3 });
+    const boundaryGeo = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(-0.5, 0, -0.5),
+      new THREE.Vector3(GRID_SIZE - 0.5, 0, -0.5),
+      new THREE.Vector3(GRID_SIZE - 0.5, 0, GRID_SIZE - 0.5),
+      new THREE.Vector3(-0.5, 0, GRID_SIZE - 0.5),
+      new THREE.Vector3(-0.5, 0, -0.5),
+    ]);
+    scene.add(new THREE.Line(boundaryGeo, boundaryMat));
+
+    // ─── SNAKE MESHES ───
+    const snakeMeshes = [];
+    const snakeHeadGeo = new THREE.SphereGeometry(0.45, 16, 16);
+    const snakeBodyGeo = new THREE.SphereGeometry(0.38, 12, 12);
+
+    function getSnakeMaterial(index, total) {
+      const hue = (0.5 + index * 0.02) % 1;
+      const emissiveIntensity = index === 0 ? 2.0 : 0.8;
+      return new THREE.MeshStandardMaterial({
+        color: new THREE.Color().setHSL(hue, 0.9, 0.5),
+        emissive: new THREE.Color().setHSL(hue, 1, 0.3),
+        emissiveIntensity,
+        metalness: 0.7,
+        roughness: 0.2,
+      });
+    }
+
+    function updateSnakeMeshes() {
+      // Remove excess
+      while (snakeMeshes.length > snake.length) {
+        const m = snakeMeshes.pop();
+        scene.remove(m);
+        if (m.light) scene.remove(m.light);
+      }
+      // Add/update
+      for (let i = 0; i < snake.length; i++) {
+        let mesh = snakeMeshes[i];
+        if (!mesh) {
+          const geo = i === 0 ? snakeHeadGeo : snakeBodyGeo;
+          mesh = new THREE.Mesh(geo, getSnakeMaterial(i, snake.length));
+          if (i === 0) {
+            const headLight = new THREE.PointLight(0x00ffff, 1.5, 5);
+            mesh.add(headLight);
+            mesh.light = headLight;
+          }
+          scene.add(mesh);
+          snakeMeshes.push(mesh);
+        }
+        // Update material color for chain effect
+        const hue = (0.5 + i * 0.015 + performance.now() * 0.0001) % 1;
+        mesh.material.color.setHSL(hue, 0.9, 0.5);
+        mesh.material.emissive.setHSL(hue, 1, 0.3);
+
+        // Smooth position
+        const target = new THREE.Vector3(snake[i].x, i === 0 ? 0.3 : 0.2, snake[i].z);
+        mesh.position.lerp(target, 0.3);
+
+        // Scale pulse for head
+        if (i === 0) {
+          const pulse = 1 + Math.sin(performance.now() * 0.005) * 0.05;
+          mesh.scale.setScalar(pulse);
+        }
+      }
+    }
+
+    // ─── FOOD ───
+    let foodMesh = null;
+    let foodLight = null;
+    const foodGeo = new THREE.OctahedronGeometry(0.35, 2);
+
+    function spawnFood() {
+      let pos;
+      do {
+        pos = {
+          x: Math.floor(Math.random() * GRID_SIZE),
+          z: Math.floor(Math.random() * GRID_SIZE),
+        };
+      } while (snake.some(s => s.x === pos.x && s.z === pos.z));
+
+      food = pos;
+
+      if (foodMesh) {
+        scene.remove(foodMesh);
+        scene.remove(foodLight);
+      }
+
+      const hue = Math.random();
+      foodMesh = new THREE.Mesh(foodGeo, new THREE.MeshStandardMaterial({
+        color: new THREE.Color().setHSL(hue, 1, 0.6),
+        emissive: new THREE.Color().setHSL(hue, 1, 0.4),
+        emissiveIntensity: 3,
+        metalness: 0.9,
+        roughness: 0.1,
+      }));
+      foodMesh.position.set(food.x, 0.4, food.z);
+      scene.add(foodMesh);
+
+      foodLight = new THREE.PointLight(new THREE.Color().setHSL(hue, 1, 0.5), 2, 6);
+      foodLight.position.set(food.x, 1, food.z);
+      scene.add(foodLight);
+    }
+
+    // ─── PARTICLES ───
+    const particleGeo = new THREE.SphereGeometry(0.08, 6, 6);
+
+    function spawnEatParticles(pos) {
+      for (let i = 0; i < 20; i++) {
+        const mat = new THREE.MeshBasicMaterial({
+          color: new THREE.Color().setHSL(Math.random(), 1, 0.7),
+          transparent: true,
+        });
+        const mesh = new THREE.Mesh(particleGeo, mat);
+        mesh.position.set(pos.x, 0.4, pos.z);
+        scene.add(mesh);
+        particles.push({
+          mesh,
+          velocity: new THREE.Vector3(
+            (Math.random() - 0.5) * 0.3,
+            Math.random() * 0.3,
+            (Math.random() - 0.5) * 0.3
+          ),
+          life: 1,
+        });
+      }
+    }
+
+    function updateParticles(dt) {
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.life -= dt * 2;
+        p.mesh.position.add(p.velocity.clone().multiplyScalar(dt * 3));
+        p.velocity.y -= dt * 2;
+        p.mesh.material.opacity = p.life;
+        p.mesh.scale.setScalar(p.life);
+        if (p.life <= 0) {
+          scene.remove(p.mesh);
+          particles.splice(i, 1);
+        }
+      }
+    }
+
+    // ─── GAME LOGIC ───
+    function initGame() {
+      // Clear old snake
+      snakeMeshes.forEach(m => {
+        scene.remove(m);
+        if (m.light) scene.remove(m.light);
+      });
+      snakeMeshes.length = 0;
+
+      const center = Math.floor(GRID_SIZE / 2);
+      snake = [
+        { x: center, z: center },
+        { x: center - 1, z: center },
+        { x: center - 2, z: center },
+      ];
+      direction = { x: 1, y: 0, z: 0 };
+      nextDirection = { x: 1, y: 0, z: 0 };
+      score = 0;
+      combo = 0;
+      moveTimer = 0;
+      updateScore();
+      spawnFood();
+    }
+
+    function moveSnake() {
+      direction = { ...nextDirection };
+
+      const head = snake[0];
+      const newHead = {
+        x: head.x + direction.x,
+        z: head.z + direction.z,
+      };
+
+      // Wall collision — wrap around
+      if (newHead.x < 0) newHead.x = GRID_SIZE - 1;
+      if (newHead.x >= GRID_SIZE) newHead.x = 0;
+      if (newHead.z < 0) newHead.z = GRID_SIZE - 1;
+      if (newHead.z >= GRID_SIZE) newHead.z = 0;
+
+      // Self collision
+      if (snake.some(s => s.x === newHead.x && s.z === newHead.z)) {
+        gameOver();
+        return;
+      }
+
+      snake.unshift(newHead);
+
+      // Eat food
+      if (food && newHead.x === food.x && newHead.z === food.z) {
+        const now = performance.now();
+        if (now - lastEatTime < COMBO_WINDOW) {
+          combo++;
+        } else {
+          combo = 1;
+        }
+        lastEatTime = now;
+
+        const points = 10 * combo;
+        score += points;
+        updateScore();
+        spawnEatParticles(food);
+        spawnFood();
+
+        // Show combo
+        if (combo > 1) {
+          const comboEl = document.getElementById('combo');
+          comboEl.textContent = `COMBO x${combo} (+${points})`;
+          comboEl.style.opacity = '1';
+          setTimeout(() => comboEl.style.opacity = '0', 1000);
+        }
+      } else {
+        snake.pop();
+      }
+    }
+
+    function gameOver() {
+      state = 'dead';
+      if (score > highScore) {
+        highScore = score;
+        localStorage.setItem('cosmicSerpentHigh', String(highScore));
+      }
+      document.getElementById('final-score').textContent = `SCORE: ${score}`;
+      document.getElementById('high-score').textContent = `HIGH SCORE: ${highScore}`;
+      document.getElementById('game-over').style.display = 'flex';
+
+      // Death explosion
+      snake.forEach(s => spawnEatParticles(s));
+    }
+
+    function updateScore() {
+      document.getElementById('score').textContent = `SCORE: ${score}`;
+    }
+
+    // ─── INPUT ───
+    const keys = {};
+
+    window.addEventListener('keydown', (e) => {
+      keys[e.key.toLowerCase()] = true;
+
+      if (e.key === 'Shift') boosting = true;
+
+      if (state === 'menu') {
+        state = 'playing';
+        document.getElementById('overlay').style.display = 'none';
+        initGame();
+        return;
+      }
+
+      if (state === 'dead') {
+        state = 'playing';
+        document.getElementById('game-over').style.display = 'none';
+        initGame();
+        return;
+      }
+
+      // Direction
+      const k = e.key.toLowerCase();
+      if ((k === 'w' || k === 'arrowup') && direction.z !== 1) {
+        nextDirection = { x: 0, y: 0, z: -1 };
+      } else if ((k === 's' || k === 'arrowdown') && direction.z !== -1) {
+        nextDirection = { x: 0, y: 0, z: 1 };
+      } else if ((k === 'a' || k === 'arrowleft') && direction.x !== 1) {
+        nextDirection = { x: -1, y: 0, z: 0 };
+      } else if ((k === 'd' || k === 'arrowright') && direction.x !== -1) {
+        nextDirection = { x: 1, y: 0, z: 0 };
+      }
+    });
+
+    window.addEventListener('keyup', (e) => {
+      keys[e.key.toLowerCase()] = false;
+      if (e.key === 'Shift') boosting = false;
+    });
+
+    // Mobile input
+    window.mobileInput = function(dir) {
+      if (state === 'menu') {
+        state = 'playing';
+        document.getElementById('overlay').style.display = 'none';
+        initGame();
+        return;
+      }
+      if (state === 'dead') {
+        state = 'playing';
+        document.getElementById('game-over').style.display = 'none';
+        initGame();
+        return;
+      }
+
+      if (dir === 'up' && direction.z !== 1) nextDirection = { x: 0, y: 0, z: -1 };
+      if (dir === 'down' && direction.z !== -1) nextDirection = { x: 0, y: 0, z: 1 };
+      if (dir === 'left' && direction.x !== 1) nextDirection = { x: -1, y: 0, z: 0 };
+      if (dir === 'right' && direction.x !== -1) nextDirection = { x: 1, y: 0, z: 0 };
+    };
+
+    // Touch swipe
+    let touchStart = null;
+    window.addEventListener('touchstart', (e) => {
+      touchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    });
+    window.addEventListener('touchend', (e) => {
+      if (!touchStart) return;
+      const dx = e.changedTouches[0].clientX - touchStart.x;
+      const dy = e.changedTouches[0].clientY - touchStart.y;
+      if (Math.abs(dx) > Math.abs(dy)) {
+        window.mobileInput(dx > 0 ? 'right' : 'left');
+      } else {
+        window.mobileInput(dy > 0 ? 'down' : 'up');
+      }
+      touchStart = null;
+    });
+
+    // ─── CAMERA ───
+    const cameraTarget = new THREE.Vector3();
+    const cameraOffset = new THREE.Vector3(0, 14, 12);
+
+    function updateCamera() {
+      if (snake.length === 0) return;
+      const head = snake[0];
+      const target = new THREE.Vector3(head.x, 0, head.z);
+      cameraTarget.lerp(target, 0.05);
+
+      const idealPos = cameraTarget.clone().add(cameraOffset);
+      camera.position.lerp(idealPos, 0.03);
+      camera.lookAt(cameraTarget);
+    }
+
+    // ─── ANIMATION LOOP ───
+    let lastTime = performance.now();
+
+    function animate() {
+      requestAnimationFrame(animate);
+
+      const now = performance.now();
+      const dt = Math.min((now - lastTime) / 1000, 0.1);
+      lastTime = now;
+
+      // Rotate starfield slowly
+      scene.children.forEach(c => {
+        if (c instanceof THREE.Points) {
+          c.rotation.y += dt * 0.01;
+        }
+      });
+
+      if (state === 'playing') {
+        const speed = boosting ? BOOST_SPEED : BASE_SPEED;
+        document.getElementById('speed-indicator').textContent = `WARP ${boosting ? '2' : '1'}`;
+        document.getElementById('speed-indicator').style.color = boosting ? '#f80' : '#0f0';
+
+        moveTimer += dt;
+        if (moveTimer >= 1 / speed) {
+          moveTimer = 0;
+          moveSnake();
+        }
+
+        updateSnakeMeshes();
+        updateCamera();
+      }
+
+      // Animate food
+      if (foodMesh) {
+        foodMesh.rotation.y += dt * 2;
+        foodMesh.rotation.x += dt * 1.5;
+        foodMesh.position.y = 0.4 + Math.sin(now * 0.003) * 0.15;
+      }
+
+      updateParticles(dt);
+
+      composer.render();
+    }
+
+    // ─── RESIZE ───
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      composer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    animate();
+  </script>
+</body>
+</html>
